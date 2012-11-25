@@ -5,6 +5,9 @@
  * Reports for FreeGeek
  */
 
+// This page is slow.
+set_time_limit(500);
+
 /**
  * Implements hook_menu().
  */
@@ -40,6 +43,7 @@ function freegeek_townsquare_reports($format, $limit = 500) {
     foreach ($sessions as $nid => $session) {
       $event_node = array_pop(field_get_items('node', $session, 'field_session_event'));
       $event = array_pop(entity_load('node', array($event_node['target_id'])));
+      $uid = array_pop(field_get_items('node', $session, 'field_session_user'));
       try {
         $event_date_field = array_pop(field_get_items('node', $event, 'field_event_date'));
         $event_date = new DateObject($event_date_field['value'], $event_date_field['timezone']);
@@ -51,15 +55,19 @@ function freegeek_townsquare_reports($format, $limit = 500) {
             array(
               'data' => $value,
               'header' => true,
-            ),
-            (float) $duration['value'],
+            ), // year
+            (float) $duration['value'], // duration
             1, // sessions
+            array($nid), // nids
           );
         } else {
           $total_sessions += 1;
           $total_hours += (float) $duration['value'];
           $results[$value][1] += (float) $duration['value']; 
           $results[$value][2] += 1;
+          if (!in_array($uid['target_id'], $results[$value][3])) {
+            $results[$value][3][] = $uid['target_id'];
+          } 
         }
       } 
       catch (Exception $e) {
@@ -67,14 +75,17 @@ function freegeek_townsquare_reports($format, $limit = 500) {
       }
     }
   }
-  $header = array('', 'Hours', 'Sessions');
+  $header = array('', 'Hours', 'Sessions', 'Unique visits');
   ksort($results);
+  // Post process to count unique people
+  foreach ($results as $value=>$row) {
+    $results[$value][3] = count($row[3]);
+  }
   $markup = array(
     '#type' => 'markup',
     '#prefix' => '<p>',
     '#suffix' => '</p>',
   );
-
   $output = array(
     $markup + array(
       '#markup' => t('Total sessions: !n sessions', array('!n' => $total_sessions)),
@@ -97,12 +108,6 @@ function freegeek_townsquare_reports($format, $limit = 500) {
       '#theme' => 'table',
       '#header' => $header,
       '#rows' => $results,
-    ),
-    '#cache' => array(
-      'keys' => array('freegeek_townsquare_reports'),
-      'bin' => 'cache',
-      'expire' => time() + 60000,
-      'granularity' => DRUPAL_CACHE_PAGE,
     ),
   );
   drupal_add_js(libraries_get_path('jqplot') . '/jquery.jqplot.min.js');
