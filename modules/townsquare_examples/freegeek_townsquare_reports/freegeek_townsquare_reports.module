@@ -23,7 +23,7 @@ function freegeek_townsquare_reports_menu() {
   return $items;
 }
 
-function freegeek_townsquare_reports_report($type) {
+function freegeek_townsquare_reports_report($type='year') {
   $result = array();
   $skipped = 0;
   $total_sessions = 0;
@@ -32,12 +32,13 @@ function freegeek_townsquare_reports_report($type) {
   switch ($type) {
     case 'month': 
       $format = 'Y-m-M';
-      $title = t('By month');
+      $title = t('Engagement by month');
       break;
     default:
       $format = 'Y';
-      $title = t('By year');
+      $title = t('Engagement by year');
   }
+  drupal_set_title($title);
 
   $params = drupal_get_query_parameters();
 
