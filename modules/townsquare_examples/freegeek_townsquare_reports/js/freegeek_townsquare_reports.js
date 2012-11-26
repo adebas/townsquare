@@ -26,7 +26,10 @@ Drupal.behaviors.FreeGeekReport = {
           },
           yaxis: {
             numberTicks: 15,
-            min: 0
+            min: 0,
+            tickOptions: {
+              formatString: '%.1f'
+            }
           }
         },
         highlighter: {
