@@ -1,0 +1,10 @@
+.tablechart {
+  width: 78%;
+  float: left;
+}
+.scrolly-table {
+  width: 18%;
+  float: right;
+  height: 368px;
+  overflow-y: scroll;
+}

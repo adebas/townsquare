@@ -3,14 +3,17 @@
 Drupal.behaviors.FreeGeekReport = {
   attach: function(context) {
     $('.table', context).tablechart({
-      height: 350,
+      height: 360,
       plotOptions: {
-        seriesColors: ['#2222cc', '#cc2222'],
+        seriesColors: ['#dddddd'],
+        legend: {
+            show: false
+        },
         seriesDefaults: {
-          renderer: $.jqplot.BarRenderer,
-          rendererOptions: { 
-            barPadding: 2,
-            barMargin: 2
+          lineWidth: 4,
+          markerOptions: {
+            shadow: false,
+            color: '#0088cc'
           }
         },
         axes: {
@@ -18,12 +21,20 @@ Drupal.behaviors.FreeGeekReport = {
             tickRenderer: $.jqplot.CanvasAxisTickRenderer ,
             tickOptions: {
               angle: 90,
-                fontSize: '10pt'
+                fontSize: '8pt'
               }
+          },
+          yaxis: {
+            numberTicks: 15
           }
+        },
+        highlighter: {
+          show: true,
+          showTooltip: true,
+          tooltipLocation: 'n'
         }
       }
-    });
+    }).wrap($('<div class="scrolly-table">'));
   }
 };
 

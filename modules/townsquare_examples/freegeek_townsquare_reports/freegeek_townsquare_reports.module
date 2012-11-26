@@ -16,25 +16,46 @@ function freegeek_townsquare_reports_menu() {
   $items['townsquare/reports'] = array(
     'title' => 'Reports', 
     'description' => 'Generate reports', 
-    'page callback' => 'freegeek_townsquare_reports', 
-    'page arguments' => array(2, 3), 
+    'page callback' => 'freegeek_townsquare_reports_report', 
+    'page arguments' => array(2), 
     'access callback' => TRUE,
   );
   return $items;
 }
 
-
-
-function freegeek_townsquare_reports($format, $limit = 500) {
+function freegeek_townsquare_reports_report($type) {
   $result = array();
   $skipped = 0;
   $total_sessions = 0;
   $total_hours = 0;
+
+  switch ($type) {
+    case 'month': 
+      $format = 'Y-m-M';
+      $title = t('By month');
+      break;
+    default:
+      $format = 'Y';
+      $title = t('By year');
+  }
+
+  $params = drupal_get_query_parameters();
+
   $query = new entityfieldquery;
   $query
     ->entitycondition('entity_type', 'node')
     ->propertycondition('type', 'volunteer_session')
-    ->range(0, $limit);
+    ->addTag('townsquare_debug');
+
+  if (isset($params['start'])) {
+    $query->fieldCondition('field_session_hours', 'value', $params['start'], '>');
+  }
+  if (isset($params['end'])) {
+    $query->fieldCondition('field_session_hours', 'value', $params['end'], '<');
+  }
+  if (isset($params['limit'])) {
+    $query->range(0, $params['limit']);
+  }
 
   $i += $inc;
   $result = $query->execute();
@@ -52,21 +73,21 @@ function freegeek_townsquare_reports($format, $limit = 500) {
         $value = str_replace(array('0201', '0209'), array('2010', '2009'), $value);
         if (empty($results[$value])) {
           $results[$value] = array( 
-            array(
+            'bucket' => array(
               'data' => $value,
               'header' => true,
-            ), // year
-            (float) $duration['value'], // duration
-            1, // sessions
-            array($nid), // nids
+            ),
+            'duration' => (float) $duration['value'],
+            'sessions' => 1, 
+            'nids' => array($nid),
           );
         } else {
           $total_sessions += 1;
           $total_hours += (float) $duration['value'];
-          $results[$value][1] += (float) $duration['value']; 
-          $results[$value][2] += 1;
-          if (!in_array($uid['target_id'], $results[$value][3])) {
-            $results[$value][3][] = $uid['target_id'];
+          $results[$value]['duration'] += (float) $duration['value']; 
+          $results[$value]['sessions'] += 1;
+          if (!in_array($uid['target_id'], $results[$value]['nids'])) {
+            $results[$value]['nids'][] = $uid['target_id'];
           } 
         }
       } 
@@ -75,11 +96,15 @@ function freegeek_townsquare_reports($format, $limit = 500) {
       }
     }
   }
-  $header = array('', 'Hours', 'Sessions', 'Unique visits');
+  $header = array('', ''); //'Hours', 'Sessions', 'Unique visits');
   ksort($results);
-  // Post process to count unique people
+  // Post process to count unique people and "flip" results
+  $tables = array('Duration' => array(), 'Sessions' => array(), 'Participants' => array(), 'Average session length' => array());
   foreach ($results as $value=>$row) {
-    $results[$value][3] = count($row[3]);
+    $tables['Duration'][] = array($row['bucket'], round($row['duration']));
+    $tables['Sessions'][] = array($row['bucket'], $row['sessions']);
+    $tables['Participants'][$row['bucket']['data']] = array($row['bucket'], count($row['nids']));
+    $tables['Average session length'][$row['bucket']['data']] = array($row['bucket'], round($row['duration']/$row['sessions'], 1));
   }
   $markup = array(
     '#type' => 'markup',
@@ -102,21 +127,26 @@ function freegeek_townsquare_reports($format, $limit = 500) {
       '#type' => 'markup',
       '#markup' => t('Debug: Skipped !n bad sessions', array('!n' => $skipped)),
     ),
-    array(
-      '#attributes' => array('id' => 'freegeek-report-' . $format),
-      '#prefix' => '<h1>'. $format .'</h1>',
+  );
+  foreach ($tables as $key=>$rows) {
+    $header = array(t('Date'), t($key));
+    $output[] =  array(
+      '#prefix' => '<div class="clearfix"><h1>'. t($key) .'</h1>',
+      '#suffix' => '</div>',
       '#theme' => 'table',
       '#header' => $header,
-      '#rows' => $results,
-    ),
-  );
+      '#rows' => $rows,
+    );
+  }
   drupal_add_js(libraries_get_path('jqplot') . '/jquery.jqplot.min.js');
   drupal_add_js(libraries_get_path('jqplot') . '/plugins/jqplot.categoryAxisRenderer.js');
   drupal_add_js(libraries_get_path('jqplot') . '/plugins/jqplot.barRenderer.js');
   drupal_add_js(libraries_get_path('jqplot') . '/plugins/jqplot.canvasTextRenderer.js');
   drupal_add_js(libraries_get_path('jqplot') . '/plugins/jqplot.canvasAxisTickRenderer.js');
+  drupal_add_js(libraries_get_path('jqplot') . '/plugins/jqplot.highlighter.js');
   drupal_add_css(libraries_get_path('jqplot') . '/jquery.jqplot.css');
   drupal_add_js(libraries_get_path('tablechart') . '/jquery.tablechart.js');
   drupal_add_js(drupal_get_path('module', 'freegeek_townsquare_reports') . '/js/freegeek_townsquare_reports.js');
+  drupal_add_css(drupal_get_path('module', 'freegeek_townsquare_reports') . '/css/freegeek_townsquare_reports.css');
   return $output;
 }
